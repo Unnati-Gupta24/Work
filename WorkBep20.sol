@@ -9,10 +9,16 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
- * @title MobilePhoneStoreToken
+ * @title MobiFi
  * @dev Implementation of the Mobile Phone Store Token with complete tokenomics
  */
-contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl, ReentrancyGuard {
+contract MobiFi is
+    ERC20,
+    ERC20Burnable,
+    Pausable,
+    AccessControl,
+    ReentrancyGuard
+{
     using SafeMath for uint256;
 
     // Role definitions
@@ -59,10 +65,27 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
     // Events
     event TierUpdated(string tierName, uint256 requirement, uint256 discount);
     event UserStaked(address indexed user, uint256 amount, uint256 timestamp);
-    event UserUnstaked(address indexed user, uint256 amount, uint256 reward, uint256 timestamp);
-    event ReferralProcessed(address indexed referrer, address indexed referee, uint256 reward);
-    event DiscountApplied(address indexed user, uint256 amount, uint256 discount);
-    event GovernanceVote(address indexed voter, uint256 proposalId, uint256 votingPower);
+    event UserUnstaked(
+        address indexed user,
+        uint256 amount,
+        uint256 reward,
+        uint256 timestamp
+    );
+    event ReferralProcessed(
+        address indexed referrer,
+        address indexed referee,
+        uint256 reward
+    );
+    event DiscountApplied(
+        address indexed user,
+        uint256 amount,
+        uint256 discount
+    );
+    event GovernanceVote(
+        address indexed voter,
+        uint256 proposalId,
+        uint256 votingPower
+    );
 
     /**
      * @dev Constructor initializes the contract with initial supply and roles
@@ -74,9 +97,9 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
         _grantRole(STORE_ROLE, msg.sender);
 
         // Initialize tiers
-        tiers["BRONZE"] = Tier(100 * 10**18, 500, false, false, false);  // 5% discount
-        tiers["SILVER"] = Tier(500 * 10**18, 1000, true, false, false);  // 10% discount
-        tiers["GOLD"] = Tier(1000 * 10**18, 1500, true, true, true);     // 15% discount
+        tiers["BRONZE"] = Tier(100 * 10**18, 500, false, false, false); // 5% discount
+        tiers["SILVER"] = Tier(500 * 10**18, 1000, true, false, false); // 10% discount
+        tiers["GOLD"] = Tier(1000 * 10**18, 1500, true, true, true); // 15% discount
 
         // Mint initial supply
         _mint(msg.sender, TOTAL_SUPPLY);
@@ -96,7 +119,10 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
     function purchaseTokens() external payable nonReentrant whenNotPaused {
         require(msg.value > 0, "Must send BNB");
         uint256 tokenAmount = (msg.value.mul(10**18)).div(INITIAL_PRICE);
-        require(balanceOf(address(this)) >= tokenAmount, "Insufficient tokens in contract");
+        require(
+            balanceOf(address(this)) >= tokenAmount,
+            "Insufficient tokens in contract"
+        );
         _transfer(address(this), msg.sender, tokenAmount);
     }
 
@@ -115,7 +141,7 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
         }
 
         _transfer(msg.sender, address(this), amount);
-        
+
         stakeInfo[msg.sender] = StakeInfo({
             amount: amount,
             startTime: block.timestamp,
@@ -132,7 +158,10 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
     function unstake() external nonReentrant whenNotPaused {
         StakeInfo storage userStake = stakeInfo[msg.sender];
         require(userStake.isStaking, "No tokens staked");
-        require(block.timestamp >= userStake.startTime + MIN_STAKE_DURATION, "Minimum stake duration not met");
+        require(
+            block.timestamp >= userStake.startTime + MIN_STAKE_DURATION,
+            "Minimum stake duration not met"
+        );
 
         uint256 reward = calculateStakingReward(msg.sender);
         uint256 amount = userStake.amount;
@@ -152,12 +181,19 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
      * @param user Address of the staker
      * @return reward Amount of reward tokens
      */
-    function calculateStakingReward(address user) public view returns (uint256) {
+    function calculateStakingReward(address user)
+        public
+        view
+        returns (uint256)
+    {
         StakeInfo memory userStake = stakeInfo[user];
         if (!userStake.isStaking) return 0;
 
-        uint256 stakingDuration = block.timestamp.sub(userStake.lastRewardCalculation);
-        uint256 reward = userStake.amount
+        uint256 stakingDuration = block.timestamp.sub(
+            userStake.lastRewardCalculation
+        );
+        uint256 reward = userStake
+            .amount
             .mul(stakingDuration)
             .mul(STAKE_APR)
             .div(365 days)
@@ -171,7 +207,10 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
      * @param referee Address of the new user
      */
     function processReferral(address referee) external onlyStore nonReentrant {
-        require(!referralInfo[referee].hasBeenReferred, "User already referred");
+        require(
+            !referralInfo[referee].hasBeenReferred,
+            "User already referred"
+        );
         require(msg.sender != referee, "Cannot refer self");
 
         referralInfo[referee].hasBeenReferred = true;
@@ -203,7 +242,12 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
      * @param amount Purchase amount
      * @return uint256 Discounted amount
      */
-    function applyDiscount(address user, uint256 amount) external view onlyStore returns (uint256) {
+    function applyDiscount(address user, uint256 amount)
+        external
+        view
+        onlyStore
+        returns (uint256)
+    {
         string memory tier = getUserTier(user);
         uint256 discount = tiers[tier].discount;
         return amount.sub(amount.mul(discount).div(10000));
@@ -222,4 +266,15 @@ contract MobilePhoneStoreToken is ERC20, ERC20Burnable, Pausable, AccessControl,
     function unpause() external onlyRole(ADMIN_ROLE) {
         _unpause();
     }
+
+    /**
+     * @dev Function to transfer the contract ownership to a new address
+     * @param newOwner The address of the new owner
+     */
+    function transferOwnership(address newOwner) external onlyRole(ADMIN_ROLE) {
+        require(newOwner != address(0), "New owner cannot be the zero address");
+        revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        grantRole(DEFAULT_ADMIN_ROLE, newOwner);
+    }
 }
+
